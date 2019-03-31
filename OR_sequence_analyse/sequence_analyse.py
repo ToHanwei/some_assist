@@ -29,7 +29,7 @@ def connect_db(df):
 	df = df.T
 	connect_info = "mysql+pymysql://root:hanwei1@localhost:3306/Human_OR_seq"
 	engine = create_engine(connect_info)
-	df.to_sql(name="O5AN1", con=engine, if_exists='replace', index=False)
+	df.to_sql(name="Q8NGI8", con=engine, if_exists='replace', index=False)
 
 
 def dofile():
@@ -39,28 +39,29 @@ def dofile():
 		for line in seqfile:
 			lines = line.split()
 			if len(lines) != 2: continue
-			key = lines[0].split("|")[1]
+			key = lines[0].split("|")[0]
 			seq = list(lines[1])
 			if (key not in seq_dict):
 				seq_dict[key] = seq
 			else:
 				seq_dict[key].extend(seq)
 	seq_df = pd.DataFrame.from_dict(data=seq_dict, orient='columns')
-	seq_filter = seq_df[seq_df['O5AN1']!='-']
+	seq_filter = seq_df[seq_df['Q8NGI8']!='-']
 	seq_filter.index = range(1, len(seq_filter)+1)
+	COUNT = len(seq_filter.columns)
 	NUM = len(seq_filter.T)
 	acount = seq_filter.apply(count, axis=1)
 	seq_data = pd.DataFrame.from_dict((dict(acount)))*100/NUM
-	return seq_data, acount, seq_filter['O5AN1']
+	return seq_data, acount, seq_filter['Q8NGI8'], COUNT
 
 
 def main(isave=False):
-	seq_data, acount, o5an1 = dofile()
+	seq_data, acount, o5an1, COUNT = dofile()
 	if isave: connect_db(seq_data)
 	for i in acount.index:
 		seq = sorted(acount[i].items(), key=lambda x:x[1], reverse=True)
-		if seq[0][1]*100/388 >= 95:
-			print(i, o5an1[i], seq[0][0], seq[0][1]*100/388)
+		if seq[0][1]*100/COUNT >= 0:
+			print(i, o5an1[i], seq[0][0], seq[0][1]*100/COUNT)
 
 	
 if __name__ == "__main__":
