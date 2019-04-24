@@ -115,9 +115,9 @@ def Get_uniprot(filename):
 def Comendline():
 	parser = argparse.ArgumentParser(description="Parser comend line")
 	parser.add_argument("-f", "--filename", help="input file name that save input name list, line by line")
-	parser.add_argument("-t", "--tax_id", default=9606, help="a number, tax id. default=9606(human)")
+	parser.add_argument("-t", "--tax_id", help="a number, tax id. default=9606(human)", default=9606)
 	parser.add_argument("-s", "--search_type", default="UNIPROT_ID")
-	parser.add_argument("-o", "--output", default="ChEMBLdata.xlsx", help="outfile name, excel file")
+	parser.add_argument("-o", "--output", help="outfile name, excel file", default="ChEMBLdata.xlsx")
 	args = parser.parse_args()
 	return args
 
