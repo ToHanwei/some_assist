@@ -5,21 +5,9 @@ import pandas as pd
 import numpy as np
 import argparse
 
-def Dict_to_data(target_dict, activity, tax_id):
-	target_df = pd.DataFrame.from_dict(target_dict)
-	#Filter tax id is 9606, it's mean that the result is a human
-	target_human = target_df[target_df['tax_id']==tax_id]
-	
-	#From ChEMBL obtain data
-	result_df = pd.DataFrame()
-	for target_id in target_human['target_chembl_id']:
-		ki_dict = activity.filter(target_chembl_id=target_id)
-		ki_df = pd.DataFrame.from_dict(ki_dict)
-		result_df = result_df.append(ki_df, ignore_index=True)
-	return result_df
 
 
-def ligand_info(input_name, tax_id, search_type):
+def ligand_info(input_name, tax_id):
 	"""
 	INFOMATION:
 	Given a gene name as function input
@@ -32,32 +20,25 @@ def ligand_info(input_name, tax_id, search_type):
 	target = new_client.target
 	activity = new_client.activity
 
-	assert search_type in ["GENE_NAME", "UNIPROT_ID"], "Input Error!"
-	if search_type == "UNIPROT_ID":
-		uniprot_id = input_name
-		print(uniprot_id)
-		#From uniport id map to target ChEMBL ID
-		target_dict = target.filter(target_components__accession=uniprot_id)
-		print(len(target_dict))
-		try:
-			assert len(target_dict)!=0
-			result_df = Dict_to_data(target_dict, activity, tax_id)
-			assert len(result_df) != 0
-		except AssertionError:
-			print("Exception")
-			return None
-	else: # Input is GENE_NAME
-		gene_name = input_name
-		print(gene_name)
-		#From gene name map to target ChEMBL ID
-		target_dict = target.filter(target_synonym__icontains=gene_name)
-		print(len(target_dict))
-		try:
-			assert len(target_dict)!=0
-			result_df = Dict_to_data(target_dict, activity, tax_id)
-			assert len(result_df) != 0
-		except AssertionError:
-			return None
+	uniprot_id = input_name
+	print(uniprot_id)
+	#From uniport id map to target ChEMBL ID
+	target_dict = target.filter(target_components__accession=uniprot_id)
+	print(len(target_dict))
+	try:
+		assert len(target_dict)!=0
+		target_df = pd.DataFrame.from_dict(target_dict)
+		#Filter tax id is 9606, it's mean that the result is a human
+		target_human = target_df[target_df['tax_id']==tax_id]
+		#From ChEMBL obtain data
+		result_df = pd.DataFrame()
+		for target_id in target_human['target_chembl_id']:
+			ki_dict = activity.filter(target_chembl_id=target_id)
+			ki_df = pd.DataFrame.from_dict(ki_dict)
+			result_df = result_df.append(ki_df, ignore_index=True)
+	except AssertionError:
+		print("Exception")
+		return None
 
 	#Filter out key records
 	pKi = result_df[result_df['type']=='pKi']
@@ -75,16 +56,15 @@ def ligand_info(input_name, tax_id, search_type):
 	#Filter out key fields
 	info_data = info_data[['target_chembl_id', 'molecule_chembl_id', 
 						'standard_value_Ki', 'standard_units_Ki',  
-						'standard_value_EC50', 'standard_units_EC50', 
-						'canonical_smiles_Ki']]
+						'standard_value_EC50', 'standard_units_EC50']]
 	#Filter None record
 	info_data = info_data.dropna()
 	#Transfor data type
 	info_data = info_data.astype({'standard_value_Ki':float, 'standard_value_EC50':float})
 	#Groupby data
 	info_data = info_data[['standard_value_Ki', 'standard_units_Ki', 
-						  'standard_value_EC50', 'standard_units_EC50', 
-						  'canonical_smiles_Ki']].groupby((info_data['target_chembl_id'], 
+						  'standard_value_EC50', 'standard_units_EC50'
+						  ]].groupby((info_data['target_chembl_id'], 
 						  info_data['molecule_chembl_id'])).min()
 	#Colculate pKi and pEC50, add as columns
 	try:
@@ -116,17 +96,14 @@ def Comendline():
 	parser = argparse.ArgumentParser(description="Parser comend line")
 	parser.add_argument("-f", "--filename", help="input file name that save input name list, line by line")
 	parser.add_argument("-t", "--tax_id", default=9606, help="a number, tax id. default=9606(human)")
-	parser.add_argument("-s", "--search_type", default="UNIPROT_ID")
 	parser.add_argument("-o", "--output", default="ChEMBLdata.xlsx", help="outfile name, excel file")
 	args = parser.parse_args()
 	return args
 
 def main():
-	#gene_name_list = ["P29274"]
 	args = Comendline()
 	FILENAME = args.filename
 	TAX_ID = args.tax_id
-	SEARCH_TYPE = args.search_type
 	OUTFILE = args.output
 	COUNT = 0	
 
@@ -136,7 +113,7 @@ def main():
 		for names in input_name_list[1:]:
 			input_name = names[0]
 			sheet_name = names[1]
-			data = ligand_info(input_name, TAX_ID, SEARCH_TYPE)
+			data = ligand_info(input_name, TAX_ID)
 			if data is not None:
 				data.to_excel(writer, sheet_name=sheet_name)
 			COUNT += 1
